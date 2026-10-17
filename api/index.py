@@ -41,8 +41,7 @@ async def cors_and_timing(request: Request, call_next):
     return response
 
 
-@app.get("/stats")
-def stats(values: str = Query(...)):
+def stats(values: str):
     try:
         nums = [int(v) for v in values.replace(" ", "").split(",") if v != ""]
     except ValueError:
@@ -60,6 +59,12 @@ def stats(values: str = Query(...)):
     }
 
 
-@app.get("/")
-def root():
-    return {"status": "ok", "endpoint": "/stats?values=1,2,3"}
+@app.get("/{full_path:path}")
+def router(full_path: str, values: str = Query(None)):
+    # Vercel may pass "/stats", "/api/index/stats" or "/api/index" (with the original
+    # path elsewhere), so match on the last path segment instead of an exact route.
+    if full_path.rstrip("/").split("/")[-1] == "stats" or values is not None:
+        if values is None:
+            return JSONResponse({"error": "missing values query parameter"}, status_code=400)
+        return stats(values)
+    return {"status": "ok", "endpoint": "/stats?values=1,2,3", "seen_path": "/" + full_path}
